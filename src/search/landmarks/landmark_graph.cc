@@ -24,6 +24,19 @@ int LandmarkGraph::get_num_edges() const {
     return total;
 }
 
+
+int LandmarkGraph::get_num_edges(EdgeType edge_type) const {
+    int total = 0;
+    for (auto &node : nodes)
+        for (auto &edge : node->children) {
+            if (edge.second == edge_type) {
+                total += 1;
+            }
+        }
+    return total;
+}
+
+
 LandmarkNode *LandmarkGraph::get_node(int i) const {
     return nodes[i].get();
 }

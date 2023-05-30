@@ -108,6 +108,7 @@ public:
     /* This is needed only by landmark graph factories and will disappear
        when moving landmark graph creation there. */
     int get_num_edges() const;
+    int get_num_edges(EdgeType edge_type) const;
 
     // only needed by non-landmarkgraph-factories
     LandmarkNode *get_node(int index) const;

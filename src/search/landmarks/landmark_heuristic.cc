@@ -90,6 +90,10 @@ void LandmarkHeuristic::compute_landmark_graph(const plugins::Options &opts) {
             << " are conjunctive." << endl;
         log << "Landmark graph contains " << lm_graph->get_num_edges()
             << " orderings." << endl;
+        log << "Natural edges: " << lm_graph->get_num_edges(EdgeType::NATURAL) << endl;
+        log << "Greedy necessary edges: " << lm_graph->get_num_edges(EdgeType::GREEDY_NECESSARY) << endl;
+        log << "Plain necessary edges: " << lm_graph->get_num_edges(EdgeType::NECESSARY) << endl;
+        log << "Reasonable edges: " << lm_graph->get_num_edges(EdgeType::REASONABLE) << endl;
     }
 
     dump_landmark_file(task_proxy, *lm_graph);
