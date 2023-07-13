@@ -91,7 +91,7 @@ int get_operator_or_axiom_id(const OperatorProxy &op) {
 */
 static void dump_node(const TaskProxy &task_proxy, const LandmarkNode &node,
                       utils::LogProxy &log) {
-    if (log.is_at_least_debug()) {
+    if (log.is_at_least_normal()) {
         cout << "  lm" << node.get_id() << " [label=\"";
         bool first = true;
         const Landmark &landmark = node.get_landmark();
@@ -119,7 +119,7 @@ static void dump_node(const TaskProxy &task_proxy, const LandmarkNode &node,
 }
 
 static void dump_edge(int from, int to, EdgeType edge, utils::LogProxy &log) {
-    if (log.is_at_least_debug()) {
+    if (log.is_at_least_normal()) {
         cout << "      lm" << from << " -> lm" << to << " [label=";
         switch (edge) {
         case EdgeType::NECESSARY:
@@ -144,7 +144,7 @@ static void dump_edge(int from, int to, EdgeType edge, utils::LogProxy &log) {
 
 void dump_landmark_graph(const TaskProxy &task_proxy,
                          const LandmarkGraph &graph, utils::LogProxy &log) {
-    if (log.is_at_least_debug()) {
+    if (log.is_at_least_normal()) {
         log << "Dumping landmark graph: " << endl;
 
         cout << "digraph G {\n";
