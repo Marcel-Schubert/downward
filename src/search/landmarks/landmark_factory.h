@@ -52,6 +52,7 @@ protected:
     bool achievers_calculated = false;
 
     void edge_add(LandmarkNode &from, LandmarkNode &to, EdgeType type);
+    void edge_add_force(LandmarkNode &from, LandmarkNode &to, EdgeType type);
 
     void discard_all_orderings();
     void mk_acyclic_graph();
