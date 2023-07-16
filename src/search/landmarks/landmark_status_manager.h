@@ -19,6 +19,7 @@ class LandmarkStatusManager {
 
     bool landmark_is_leaf(const LandmarkNode &node, const BitsetView &reached) const;
     bool landmark_needed_again(int id, const State &state);
+    bool landmark_needed_again_reasonable(int id, const State &state);
 
     void set_reached_landmarks_for_initial_state(
         const State &initial_state, utils::LogProxy &log);

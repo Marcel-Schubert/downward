@@ -105,9 +105,9 @@ bool LandmarkStatusManager::process_state_transition(
         if (!reached.test(id)) {
             LandmarkNode *node = lm_graph.get_node(id);
             if (node->get_landmark().is_true_in_state(ancestor_state)) {
-                if (landmark_is_leaf(*node, reached)) {
-                    reached.set(id);
-                }
+                //if (landmark_is_leaf(*node, reached)) {
+                reached.set(id);
+                //}
             }
         }
     }
@@ -128,6 +128,20 @@ void LandmarkStatusManager::update_lm_status(const State &ancestor_state) {
         if (lm_status[id] == lm_reached
             && landmark_needed_again(id, ancestor_state)) {
             lm_status[id] = lm_needed_again;
+        }
+    }
+    // landmark_needed_again_reasonable depends on which landmarks are nedded_again,
+    // but we also change needed_again here. Thus, we loop until a fixpoint is reached.
+    // TODO: Potential to improve
+    bool fixpoint_reached = false;
+    while (!fixpoint_reached) {
+        fixpoint_reached = true;
+        for (int id = 0; id < num_landmarks; ++id) {
+            if (lm_status[id] == lm_reached
+                && landmark_needed_again_reasonable(id, ancestor_state)) {
+                fixpoint_reached = false;
+                lm_status[id] = lm_needed_again;
+            }
         }
     }
 }
@@ -154,6 +168,24 @@ bool LandmarkStatusManager::landmark_needed_again(
         }
         return false;
     }
+}
+
+bool LandmarkStatusManager::landmark_needed_again_reasonable(int id, const State &state) {
+    /*
+      For all A ->_r B, if A is not reached or (currently false and needed again), then B is also needed again.
+    */
+    LandmarkNode *node = lm_graph.get_node(id);
+    for (const auto &parent : node->parents) {
+        const Landmark &parent_lm = parent.first->get_landmark();
+        if (parent_lm.is_true_in_state(state)) {
+            continue;
+        }
+        if (parent.second >= EdgeType::REASONABLE
+            && (lm_status[parent.first->get_id()] == lm_not_reached || lm_status[parent.first->get_id()] == lm_needed_again)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool LandmarkStatusManager::landmark_is_leaf(const LandmarkNode &node,
