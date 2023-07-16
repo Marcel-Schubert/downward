@@ -97,8 +97,11 @@ void LandmarkHeuristic::compute_landmark_graph(const plugins::Options &opts) {
     }
 
     dump_landmark_graph(task_proxy, *lm_graph, log);
-    dump_landmark_file(task_proxy, *lm_graph);
-    exit(EXIT_SUCCESS);
+    if (opts.get<bool>("dump_and_exit")) {
+        dump_landmark_file(task_proxy, *lm_graph);
+        log << "Dumped landmarks. Exitting." << endl;
+        exit(EXIT_SUCCESS);
+    }
 }
 
 void LandmarkHeuristic::generate_preferred_operators(
@@ -192,10 +195,15 @@ void LandmarkHeuristic::add_options_to_feature(plugins::Feature &feature) {
         "the set of landmarks to use for this heuristic. "
         "The set of landmarks can be specified here, "
         "or predefined (see LandmarkFactory).");
+
     feature.add_option<bool>(
         "pref",
         "identify preferred operators (see OptionCaveats#"
         "Using_preferred_operators_with_landmark_heuristics)",
+        "false");
+    feature.add_option<bool>(
+        "dump_and_exit",
+        "If this is active, dump landmarks to file and exit",
         "false");
     Heuristic::add_options_to_feature(feature);
 
