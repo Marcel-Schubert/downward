@@ -212,15 +212,10 @@ public:
 
     int get_state_size_in_bytes() const;
 
-    void print_statistics(utils::LogProxy &log) const;
+    void print_statistics() const;
 
-    class const_iterator {
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = StateID;
-        using difference_type = ptrdiff_t;
-        using pointer = StateID *;
-        using reference = StateID &;
-
+    class const_iterator : public std::iterator<
+                               std::forward_iterator_tag, StateID> {
         /*
           We intentionally omit parts of the forward iterator concept
           (e.g. default construction, copy assignment, post-increment)
@@ -242,12 +237,12 @@ public:
             return *this;
         }
 
-        bool operator==(const const_iterator &rhs) const {
+        bool operator==(const const_iterator &rhs) {
             assert(&registry == &rhs.registry);
             return pos == rhs.pos;
         }
 
-        bool operator!=(const const_iterator &rhs) const {
+        bool operator!=(const const_iterator &rhs) {
             return !(*this == rhs);
         }
 

@@ -1,29 +1,23 @@
 #include "util.h"
 
-#include "landmark.h"
 #include "landmark_graph.h"
 
 #include "../task_proxy.h"
 #include "../utils/logging.h"
 
-#include <fstream>
-#include <iostream>
 #include <limits>
-#include <regex>
 
 using namespace std;
 
 namespace landmarks {
-bool _possibly_fires(const EffectConditionsProxy &conditions,
-                     const vector<vector<bool>> &reached) {
+bool _possibly_fires(const EffectConditionsProxy &conditions, const vector<vector<int>> &lvl_var) {
     for (FactProxy cond : conditions)
-        if (!reached[cond.get_variable().get_id()][cond.get_value()])
+        if (lvl_var[cond.get_variable().get_id()][cond.get_value()] == numeric_limits<int>::max())
             return false;
     return true;
 }
 
-unordered_map<int, int> _intersect(const unordered_map<int, int> &a,
-                                   const unordered_map<int, int> &b) {
+unordered_map<int, int> _intersect(const unordered_map<int, int> &a, const unordered_map<int, int> &b) {
     if (a.size() > b.size())
         return _intersect(b, a);
     unordered_map<int, int> result;
@@ -35,29 +29,28 @@ unordered_map<int, int> _intersect(const unordered_map<int, int> &a,
     return result;
 }
 
-bool possibly_reaches_lm(const OperatorProxy &op,
-                         const vector<vector<bool>> &reached,
-                         const Landmark &landmark) {
+bool _possibly_reaches_lm(const OperatorProxy &op, const vector<vector<int>> &lvl_var, const LandmarkNode *lmp) {
     /* Check whether operator o can possibly make landmark lmp true in a
-       relaxed task (as given by the reachability information in reached) */
+       relaxed task (as given by the reachability information in lvl_var) */
 
-    assert(!reached.empty());
+    assert(!lvl_var.empty());
 
     // Test whether all preconditions of o can be reached
     // Otherwise, operator is not applicable
     PreconditionsProxy preconditions = op.get_preconditions();
     for (FactProxy pre : preconditions)
-        if (!reached[pre.get_variable().get_id()][pre.get_value()])
+        if (lvl_var[pre.get_variable().get_id()][pre.get_value()] ==
+            numeric_limits<int>::max())
             return false;
 
     // Go through all effects of o and check whether one can reach a
     // proposition in lmp
-    for (EffectProxy effect : op.get_effects()) {
+    for (EffectProxy effect: op.get_effects()) {
         FactProxy effect_fact = effect.get_fact();
-        assert(!reached[effect_fact.get_variable().get_id()].empty());
-        for (const FactPair &fact : landmark.facts) {
+        assert(!lvl_var[effect_fact.get_variable().get_id()].empty());
+        for (const FactPair &fact : lmp->facts) {
             if (effect_fact.get_pair() == fact) {
-                if (_possibly_fires(effect.get_conditions(), reached))
+                if (_possibly_fires(effect.get_conditions(), lvl_var))
                     return true;
                 break;
             }
@@ -67,8 +60,7 @@ bool possibly_reaches_lm(const OperatorProxy &op,
     return false;
 }
 
-OperatorProxy get_operator_or_axiom(const TaskProxy &task_proxy,
-                                    int op_or_axiom_id) {
+OperatorProxy get_operator_or_axiom(const TaskProxy &task_proxy, int op_or_axiom_id) {
     if (op_or_axiom_id < 0) {
         return task_proxy.get_axioms()[-op_or_axiom_id - 1];
     } else {
@@ -84,189 +76,66 @@ int get_operator_or_axiom_id(const OperatorProxy &op) {
     }
 }
 
-/*
-  The below functions use cout on purpose for dumping a landmark graph.
-  TODO: ideally, this should be written to a file or through a logger
-  at least, but without the time and memory stamps.
-*/
-static void dump_node(const TaskProxy &task_proxy, const LandmarkNode &node,
-                      utils::LogProxy &log) {
-    if (log.is_at_least_normal()) {
-        cout << "  lm" << node.get_id() << " [label=\"";
-        bool first = true;
-        const Landmark &landmark = node.get_landmark();
-        for (FactPair fact : landmark.facts) {
-            if (!first) {
-                if (landmark.disjunctive) {
-                    cout << " | ";
-                } else if (landmark.conjunctive) {
-                    cout << " & ";
-                }
-            }
-            first = false;
-            VariableProxy var = task_proxy.get_variables()[fact.var];
-            cout << var.get_fact(fact.value).get_name();
-        }
-        cout << "\"";
-        if (landmark.is_true_in_state(task_proxy.get_initial_state())) {
-            cout << ", style=bold";
-        }
-        if (landmark.is_true_in_goal) {
-            cout << ", style=filled";
-        }
-        cout << "];\n";
-    }
-}
-
-static void dump_edge(int from, int to, EdgeType edge, utils::LogProxy &log) {
-    if (log.is_at_least_normal()) {
-        cout << "      lm" << from << " -> lm" << to << " [label=";
-        switch (edge) {
-        case EdgeType::NECESSARY:
-            cout << "\"nec\"";
-            break;
-        case EdgeType::GREEDY_NECESSARY:
-            cout << "\"gn\"";
-            break;
-        case EdgeType::NATURAL:
-            cout << "\"n\"";
-            break;
-        case EdgeType::REASONABLE:
-            cout << "\"r\", style=dashed";
-            break;
-        case EdgeType::OBEDIENT_REASONABLE:
-            cout << "\"o_r\", style=dashed";
-            break;
-        }
-        cout << "];\n";
-    }
-}
-
-void dump_landmark_graph(const TaskProxy &task_proxy,
-                         const LandmarkGraph &graph, utils::LogProxy &log) {
-    if (log.is_at_least_normal()) {
-        log << "Dumping landmark graph: " << endl;
-
-        cout << "digraph G {\n";
-        for (const unique_ptr<LandmarkNode> &node : graph.get_nodes()) {
-            dump_node(task_proxy, *node, log);
-            for (const auto &child : node->children) {
-                const LandmarkNode *child_node = child.first;
-                const EdgeType &edge = child.second;
-                dump_edge(node->get_id(), child_node->get_id(), edge, log);
+static void dump_node(const TaskProxy &task_proxy, const LandmarkNode &node) {
+    cout << "  lm" << node.get_id() << " [label=\"";
+    bool first = true;
+    for (FactPair fact : node.facts) {
+        if (!first) {
+            if (node.disjunctive) {
+                cout << " | ";
+            } else if (node.conjunctive) {
+                cout << " & ";
             }
         }
-        cout << "}" << endl;
-        log << "Landmark graph end." << endl;
-    }
-}
-
-/*============*/
-
-// Dump a node in the landmark file format expected by powerlifted
-static void dump_node_file(const TaskProxy &task_proxy,
-                           const LandmarkNode &node, ofstream &fs) {
-    const Landmark &landmark = node.get_landmark();
-    bool none_of_those = false;
-    for (FactPair fact : landmark.facts) {
+        first = false;
         VariableProxy var = task_proxy.get_variables()[fact.var];
-        string fact_name = var.get_fact(fact.value).get_name();
-        if (fact_name == "<none of those>") {
-            none_of_those = true;
-        }
+        cout << var.get_fact(fact.value).get_name();
     }
-    if (none_of_those) {
-        if (landmark.facts.size() == 1) {
-            FactPair fact = landmark.facts[0];
-            VariableProxy var = task_proxy.get_variables()[fact.var];
-            fs << "0 0 " << var.get_domain_size() - 1 << " "
-               << ((node.children.size() or node.parents.size()) ? "1" : "0") << " ";
-            for (int i = 0; i < var.get_domain_size(); i++) {
-                string other_name = var.get_fact(i).get_name();
-                if (other_name == "<none of those>") {
-                    continue;
-                }
-                if (other_name.substr(0, 5) == "Atom ") {
-                    other_name.erase(0, 5);
-                    other_name = "!" + other_name;
-                } else if (other_name.substr(0, 12) == "NegatedAtom ") {
-                    other_name.erase(0, 12);
-                }
-                other_name = regex_replace(other_name, regex("\\(\\)"), "");
-                other_name = regex_replace(other_name, regex("\\("), " ");
-                other_name = regex_replace(other_name, regex("\\)|,"), "");
-                fs << "(" << other_name << ")";
-            }
-            fs << "\n";
-            return;
-        } else {
-            cout << "none of those in compund landmark" << endl;
-            exit(-1);
-        }
+    cout << "\"";
+    if (node.is_true_in_state(task_proxy.get_initial_state())) {
+        cout << ", style=bold";
     }
-    fs << "0"
-       << " " << (landmark.disjunctive ? "1" : "0") << " "
-       << landmark.facts.size() << " "
-       << ((node.children.size() or node.parents.size()) ? "1" : "0") << " ";
-    for (FactPair fact : landmark.facts) {
-        VariableProxy var = task_proxy.get_variables()[fact.var];
-        string fact_name = var.get_fact(fact.value).get_name();
-        if (fact_name.substr(0, 5) == "Atom ") {
-            fact_name.erase(0, 5);
-        } else if (fact_name.substr(0, 12) == "NegatedAtom ") {
-            fact_name.erase(0, 12);
-            fact_name = "!" + fact_name;
-        }
-        fact_name = regex_replace(fact_name, regex("\\(\\)"), "");
-        fact_name = regex_replace(fact_name, regex("\\("), " ");
-        fact_name = regex_replace(fact_name, regex("\\)|,"), "");
-        fs << "(" << fact_name << ")";
+    if (node.is_true_in_goal) {
+        cout << ", style=filled";
     }
-    fs << "\n";
+    cout << "];\n";
 }
 
-// Dump an edge in the landmark file format expected by powerlifted
-static void dump_edge_file(int from, int to, EdgeType edge, ofstream &fs) {
-    fs << from << " " << to << " ";
+static void dump_edge(int from, int to, EdgeType edge) {
+    cout << "      lm" << from << " -> lm" << to << " [label=";
     switch (edge) {
     case EdgeType::NECESSARY:
-        fs << "0";
+        cout << "\"nec\"";
         break;
     case EdgeType::GREEDY_NECESSARY:
-        fs << "5";
+        cout << "\"gn\"";
         break;
     case EdgeType::NATURAL:
-        fs << "1";
+        cout << "\"n\"";
         break;
     case EdgeType::REASONABLE:
-        fs << "2";
+        cout << "\"r\", style=dashed";
         break;
     case EdgeType::OBEDIENT_REASONABLE:
-        fs << "3";
+        cout << "\"o_r\", style=dashed";
         break;
     }
-    fs << "\n";
+    cout << "];\n";
 }
 
-// Dump a landmark graph in the format expected by powerlifted to LMs.txt
-void dump_landmark_file(const TaskProxy &task_proxy,
-                        const LandmarkGraph &graph) {
-    ofstream fs;
-    fs.open("LMs.txt");
-    fs << "LMs\n";
-    fs << graph.get_num_landmarks() << "\n";
+void dump_landmark_graph(const TaskProxy &task_proxy, const LandmarkGraph &graph) {
+    utils::g_log << "Dumping landmark graph: " << endl;
+
+    cout << "digraph G {\n";
     for (const unique_ptr<LandmarkNode> &node : graph.get_nodes()) {
-        dump_node_file(task_proxy, *node, fs);
-    }
-    fs << "LM Orderings\n";
-    fs << graph.get_num_edges() << "\n";
-    for (const unique_ptr<LandmarkNode> &node : graph.get_nodes()) {
+        dump_node(task_proxy, *node);
         for (const auto &child : node->children) {
             const LandmarkNode *child_node = child.first;
             const EdgeType &edge = child.second;
-            dump_edge_file(node->get_id(), child_node->get_id(), edge, fs);
+            dump_edge(node->get_id(), child_node->get_id(), edge);
         }
     }
-    fs.close();
+    cout << "}" << endl;
+    utils::g_log << "Landmark graph end." << endl;
 }
-} // namespace landmarks
+}

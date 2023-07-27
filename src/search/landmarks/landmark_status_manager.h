@@ -9,51 +9,47 @@ namespace landmarks {
 class LandmarkGraph;
 class LandmarkNode;
 
-enum landmark_status {lm_reached = 0, lm_not_reached = 1, lm_needed_again = 2};
+enum landmark_status {PAST = 0, FUTURE = 1, PAST_AND_FUTURE = 2};
 
 class LandmarkStatusManager {
-    LandmarkGraph &lm_graph;
-
-    PerStateBitset reached_lms;
+protected:
+    PerStateBitset past_lms;
     std::vector<landmark_status> lm_status;
-
-    bool landmark_is_leaf(const LandmarkNode &node, const BitsetView &reached) const;
-    bool landmark_needed_again(int id, const State &state);
-    bool landmark_needed_again_reasonable(int id, const State &state);
-
-    void set_reached_landmarks_for_initial_state(
-        const State &initial_state, utils::LogProxy &log);
+    LandmarkGraph &lm_graph;
 public:
+    std::unordered_set<const LandmarkNode *> get_past_landmarks(
+        const State &state);
+
     explicit LandmarkStatusManager(LandmarkGraph &graph);
+    virtual ~LandmarkStatusManager() = default;
 
-    BitsetView get_reached_landmarks(const State &state);
+    virtual void update_lm_status(const State &ancestor_state) = 0;
+    bool dead_end_exists();
 
-    void update_lm_status(const State &ancestor_state);
-
-    void process_initial_state(
-        const State &initial_state, utils::LogProxy &log);
-    bool process_state_transition(
-        const State &parent_ancestor_state, OperatorID op_id,
-        const State &ancestor_state);
+    virtual void progress_initial_state(const State &initial_state) = 0;
+    virtual void progress(const State &parent_ancestor_state,
+                          OperatorID op_id, const State &ancestor_state) = 0;
 
     /*
       TODO:
       The status of a landmark is actually dependent on the state. This
-      is not represented in the function below. Furthermore, the status
+      is not represented in the functions below. Furthermore, the status
       manager only stores the status for one particular state at a time.
 
       At the day of writing this comment, this works as
-      *update_reached_lms()* is always called before the status
+      *update_accepted_lms()* is always called before the status
       information is used (by calling *get_landmark_status()*).
 
       It would be a good idea to ensure that the status for the
       desired state is returned at all times, or an error is thrown
       if the desired information does not exist.
      */
-    landmark_status get_landmark_status(size_t id) const {
-        assert(static_cast<int>(id) < lm_graph.get_num_landmarks());
-        return lm_status[id];
-    }
+    bool landmark_is_past(int id) {
+        return lm_status[id] != FUTURE;
+    };
+    bool landmark_is_future(int id) {
+        return lm_status[id] != PAST;
+    };
 };
 }
 

@@ -10,8 +10,9 @@
 class Evaluator;
 class PruningMethod;
 
-namespace plugins {
-class Feature;
+namespace options {
+class OptionParser;
+class Options;
 }
 
 namespace eager_search {
@@ -36,7 +37,7 @@ protected:
     virtual SearchStatus step() override;
 
 public:
-    explicit EagerSearch(const plugins::Options &opts);
+    explicit EagerSearch(const options::Options &opts);
     virtual ~EagerSearch() = default;
 
     virtual void print_statistics() const override;
@@ -44,7 +45,7 @@ public:
     void dump_search_space() const;
 };
 
-extern void add_options_to_feature(plugins::Feature &feature);
+extern void add_options_to_parser(options::OptionParser &parser);
 }
 
 #endif

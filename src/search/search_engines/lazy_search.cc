@@ -1,9 +1,9 @@
 #include "lazy_search.h"
 
 #include "../open_list_factory.h"
+#include "../option_parser.h"
 
 #include "../algorithms/ordered_set.h"
-#include "../plugins/options.h"
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/logging.h"
@@ -17,7 +17,7 @@
 using namespace std;
 
 namespace lazy_search {
-LazySearch::LazySearch(const plugins::Options &opts)
+LazySearch::LazySearch(const Options &opts)
     : SearchEngine(opts),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
                 create_edge_open_list()),
@@ -43,7 +43,7 @@ void LazySearch::set_preferred_operator_evaluators(
 }
 
 void LazySearch::initialize() {
-    log << "Conducting lazy best first search, (real) bound = " << bound << endl;
+    utils::g_log << "Conducting lazy best first search, (real) bound = " << bound << endl;
 
     assert(open_list);
     set<Evaluator *> evals;
@@ -117,7 +117,7 @@ void LazySearch::generate_successors() {
 
 SearchStatus LazySearch::fetch_next_state() {
     if (open_list->empty()) {
-        log << "Completely explored state space -- no solution!" << endl;
+        utils::g_log << "Completely explored state space -- no solution!" << endl;
         return FAILED;
     }
 

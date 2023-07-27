@@ -719,8 +719,7 @@ public:
         // Create a copy of the state values for the new state.
         ancestor_state.unpack();
         std::vector<int> state_values = ancestor_state.get_unpacked_values();
-        task->convert_ancestor_state_values(
-            state_values, ancestor_task_proxy.task);
+        task->convert_state_values(state_values, ancestor_task_proxy.task);
         return create_state(std::move(state_values));
     }
 

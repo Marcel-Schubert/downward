@@ -1,8 +1,9 @@
 #include "root_task.h"
 
+#include "../option_parser.h"
+#include "../plugin.h"
 #include "../state_registry.h"
 
-#include "../plugins/plugin.h"
 #include "../utils/collections.h"
 #include "../utils/timer.h"
 
@@ -102,7 +103,7 @@ public:
     virtual FactPair get_goal_fact(int index) const override;
 
     virtual vector<int> get_initial_state_values() const override;
-    virtual void convert_ancestor_state_values(
+    virtual void convert_state_values(
         vector<int> &values,
         const AbstractTask *ancestor_task) const override;
 };
@@ -485,7 +486,7 @@ vector<int> RootTask::get_initial_state_values() const {
     return initial_state_values;
 }
 
-void RootTask::convert_ancestor_state_values(
+void RootTask::convert_state_values(
     vector<int> &, const AbstractTask *ancestor_task) const {
     if (this != ancestor_task) {
         ABORT("Invalid state conversion");
@@ -497,15 +498,12 @@ void read_root_task(istream &in) {
     g_root_task = make_shared<RootTask>(in);
 }
 
-class RootTaskFeature : public plugins::TypedFeature<AbstractTask, AbstractTask> {
-public:
-    RootTaskFeature() : TypedFeature("no_transform") {
-    }
-
-    virtual shared_ptr<AbstractTask> create_component(const plugins::Options &, const utils::Context &) const override {
+static shared_ptr<AbstractTask> _parse(OptionParser &parser) {
+    if (parser.dry_run())
+        return nullptr;
+    else
         return g_root_task;
-    }
-};
+}
 
-static plugins::FeaturePlugin<RootTaskFeature> _plugin;
+static Plugin<AbstractTask> _plugin("no_transform", _parse);
 }

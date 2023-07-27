@@ -2,7 +2,8 @@
 
 #include "lp_internals.h"
 
-#include "../plugins/plugin.h"
+#include "../option_parser.h"
+
 #include "../utils/logging.h"
 #include "../utils/system.h"
 
@@ -11,16 +12,6 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
-
-/*
-   OSI uses the keyword 'register' which was deprecated for a while and removed
-   in C++ 17. Most compilers ignore it but clang 14 complains if it is still used.
-*/
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Wkeyword-macro"
-#endif
-#define register
-
 #include <OsiSolverInterface.hpp>
 #include <CoinPackedMatrix.hpp>
 #include <CoinPackedVector.hpp>
@@ -37,16 +28,27 @@ using namespace std;
 using utils::ExitCode;
 
 namespace lp {
-void add_lp_solver_option_to_feature(plugins::Feature &feature) {
-    feature.add_option<LPSolverType>(
-        "lpsolver",
-        "external solver that should be used to solve linear programs",
-        "cplex");
-
-    feature.document_note(
+void add_lp_solver_option_to_parser(OptionParser &parser) {
+    parser.document_note(
         "Note",
         "to use an LP solver, you must build the planner with LP support. "
         "See LPBuildInstructions.");
+    vector<string> lp_solvers;
+    vector<string> lp_solvers_doc;
+    lp_solvers.push_back("CLP");
+    lp_solvers_doc.push_back("default LP solver shipped with the COIN library");
+    lp_solvers.push_back("CPLEX");
+    lp_solvers_doc.push_back("commercial solver by IBM");
+    lp_solvers.push_back("GUROBI");
+    lp_solvers_doc.push_back("commercial solver");
+    lp_solvers.push_back("SOPLEX");
+    lp_solvers_doc.push_back("open source solver by ZIB");
+    parser.add_enum_option<LPSolverType>(
+        "lpsolver",
+        lp_solvers,
+        "external solver that should be used to solve linear programs",
+        "CPLEX",
+        lp_solvers_doc);
 }
 
 LPConstraint::LPConstraint(double lower_bound, double upper_bound)
@@ -68,11 +70,7 @@ void LPConstraint::insert(int index, double coefficient) {
     coefficients.push_back(coefficient);
 }
 
-ostream &LPConstraint::dump(ostream &stream, const LinearProgram *program) {
-    double infinity = numeric_limits<double>::infinity();
-    if (program) {
-        infinity = program->get_infinity();
-    }
+ostream &LPConstraint::dump(ostream &stream, double infinity, const LinearProgram *program) {
     if (lower_bound != -infinity) {
         stream << lower_bound << " <= ";
     }
@@ -110,10 +108,6 @@ named_vector::NamedVector<LPVariable> &LinearProgram::get_variables() {
 
 named_vector::NamedVector<LPConstraint> &LinearProgram::get_constraints() {
     return constraints;
-}
-
-double LinearProgram::get_infinity() const {
-    return infinity;
 }
 
 LPObjectiveSense LinearProgram::get_sense() const {
@@ -380,10 +374,6 @@ void LPSolver::set_variable_upper_bound(int index, double bound) {
     is_solved = false;
 }
 
-void LPSolver::set_mip_gap(double gap) {
-    lp::set_mip_gap(lp_solver.get(), gap);
-}
-
 void LPSolver::solve() {
     try {
         if (is_initialized) {
@@ -503,11 +493,4 @@ void LPSolver::print_statistics() const {
 }
 
 #endif
-
-static plugins::TypedEnumPlugin<LPSolverType> _enum_plugin({
-        {"clp", "default LP solver shipped with the COIN library"},
-        {"cplex", "commercial solver by IBM"},
-        {"gurobi", "commercial solver"},
-        {"soplex", "open source solver by ZIB"}
-    });
 }

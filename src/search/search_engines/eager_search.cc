@@ -3,11 +3,12 @@
 #include "../evaluation_context.h"
 #include "../evaluator.h"
 #include "../open_list_factory.h"
+#include "../option_parser.h"
 #include "../pruning_method.h"
 
 #include "../algorithms/ordered_set.h"
-#include "../plugins/options.h"
 #include "../task_utils/successor_generator.h"
+
 #include "../utils/logging.h"
 
 #include <cassert>
@@ -19,7 +20,7 @@
 using namespace std;
 
 namespace eager_search {
-EagerSearch::EagerSearch(const plugins::Options &opts)
+EagerSearch::EagerSearch(const Options &opts)
     : SearchEngine(opts),
       reopen_closed_nodes(opts.get<bool>("reopen_closed")),
       open_list(opts.get<shared_ptr<OpenListFactory>>("open")->
@@ -35,10 +36,10 @@ EagerSearch::EagerSearch(const plugins::Options &opts)
 }
 
 void EagerSearch::initialize() {
-    log << "Conducting best first search"
-        << (reopen_closed_nodes ? " with" : " without")
-        << " reopening closed nodes, (real) bound = " << bound
-        << endl;
+    utils::g_log << "Conducting best first search"
+                 << (reopen_closed_nodes ? " with" : " without")
+                 << " reopening closed nodes, (real) bound = " << bound
+                 << endl;
     assert(open_list);
 
     set<Evaluator *> evals;
@@ -85,7 +86,7 @@ void EagerSearch::initialize() {
     statistics.inc_evaluated_states();
 
     if (open_list->is_dead_end(eval_context)) {
-        log << "Initial state is a dead end." << endl;
+        utils::g_log << "Initial state is a dead end." << endl;
     } else {
         if (search_progress.check_progress(eval_context))
             statistics.print_checkpoint_line(0);
@@ -111,7 +112,7 @@ SearchStatus EagerSearch::step() {
     tl::optional<SearchNode> node;
     while (true) {
         if (open_list->empty()) {
-            log << "Completely explored state space -- no solution!" << endl;
+            utils::g_log << "Completely explored state space -- no solution!" << endl;
             return FAILED;
         }
         StateID id = open_list->remove_min();
@@ -307,8 +308,8 @@ void EagerSearch::update_f_value_statistics(EvaluationContext &eval_context) {
     }
 }
 
-void add_options_to_feature(plugins::Feature &feature) {
-    SearchEngine::add_pruning_option(feature);
-    SearchEngine::add_options_to_feature(feature);
+void add_options_to_parser(OptionParser &parser) {
+    SearchEngine::add_pruning_option(parser);
+    SearchEngine::add_options_to_parser(parser);
 }
 }

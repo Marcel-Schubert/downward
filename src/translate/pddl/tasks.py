@@ -1,23 +1,11 @@
-from typing import List, Union
-
 from . import axioms
 from . import predicates
-from .actions import Action
-from .axioms import Axiom
-from .conditions import Atom, Condition
-from .f_expression import Assign
-from .functions import Function
-from .pddl_types import Type, TypedObject
-from .predicates import Predicate
+
 
 class Task:
-    def __init__(self, domain_name: str, task_name: str,
-                 requirements: "Requirements",
-                 types: List[Type], objects: List[TypedObject], predicates:
-                 List[Predicate], functions: List[Function],
-                 init: List[Union[Atom, Assign]], goal: Condition,
-                 actions: List[Action], axioms: List[Axiom],
-                 use_metric: bool) -> None:
+    def __init__(self, domain_name, task_name, requirements,
+                 types, objects, predicates, functions, init, goal,
+                 actions, axioms, use_metric):
         self.domain_name = domain_name
         self.task_name = task_name
         self.requirements = requirements
@@ -69,7 +57,7 @@ class Task:
                 axiom.dump()
 
 class Requirements:
-    def __init__(self, requirements: List[str]):
+    def __init__(self, requirements):
         self.requirements = requirements
         for req in requirements:
             assert req in (

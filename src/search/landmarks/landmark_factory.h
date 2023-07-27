@@ -3,8 +3,6 @@
 
 #include "landmark_graph.h"
 
-#include "../utils/logging.h"
-
 #include <list>
 #include <map>
 #include <memory>
@@ -15,9 +13,9 @@
 
 class TaskProxy;
 
-namespace plugins {
+namespace options {
+class OptionParser;
 class Options;
-class Feature;
 }
 
 namespace landmarks {
@@ -30,35 +28,49 @@ public:
     virtual ~LandmarkFactory() = default;
     LandmarkFactory(const LandmarkFactory &) = delete;
 
-    std::shared_ptr<LandmarkGraph> compute_lm_graph(const std::shared_ptr<AbstractTask> &task);
+    std::shared_ptr<LandmarkGraph> compute_lm_graph(
+        const std::shared_ptr<AbstractTask> &task, bool _lama=false);
 
-    /*
-      TODO: Currently reasonable orders are not supported for admissible landmark count
-      heuristics, which is why the heuristic needs to know whether the factory computes
-      reasonable orders. Once issue383 is dealt with we should be able to use reasonable
-      orders for admissible heuristics and this method can be removed.
-    */
-    virtual bool computes_reasonable_orders() const = 0;
+    bool use_disjunctive_landmarks() const {return disjunctive_landmarks;}
+    bool use_reasonable_orders() const {return reasonable_orders;}
+    bool use_obedient_reasonable_orders() const {
+        return obedient_reasonable_orders;
+    }
+    bool use_from_file() const {return from_file;}
     virtual bool supports_conditional_effects() const = 0;
 
-    bool achievers_are_calculated() const {
-        return achievers_calculated;
-    }
-
 protected:
-    explicit LandmarkFactory(const plugins::Options &opts);
-    mutable utils::LogProxy log;
+    LandmarkFactory(const options::Options &opts);
+
     std::shared_ptr<LandmarkGraph> lm_graph;
-    bool achievers_calculated = false;
+    const bool reasonable_orders;
+    const bool obedient_reasonable_orders;
+    const bool from_file;
+    const bool acyclic;
+    const bool only_causal_landmarks;
+    const bool disjunctive_landmarks;
+    const bool conjunctive_landmarks;
+    const bool no_orders;
+    bool lama;
+
+    /*
+      TODO: Make access of member variables of this class consistent (currently,
+       no_orders is the only member variable that is accessed via a method,
+       while all other are accessed directly.
+    */
+    bool use_orders() const {return !no_orders;}   // only needed by HMLandmark
 
     void edge_add(LandmarkNode &from, LandmarkNode &to, EdgeType type);
-    void edge_add_force(LandmarkNode &from, LandmarkNode &to, EdgeType type);
 
+    void discard_disjunctive_landmarks();
+    void discard_conjunctive_landmarks();
     void discard_all_orderings();
+    void approximate_reasonable_orders(
+        const TaskProxy &task_proxy, bool obedient_orders, bool from_file);
     void mk_acyclic_graph();
+    int calculate_lms_cost() const;
 
-    bool is_landmark_precondition(const OperatorProxy &op,
-                                  const Landmark &landmark) const;
+    bool is_landmark_precondition(const OperatorProxy &op, const LandmarkNode *lmp) const;
 
     const std::vector<int> &get_operators_including_eff(const FactPair &eff) const {
         return operators_eff_lookup[eff.var][eff.value];
@@ -71,17 +83,23 @@ private:
 
     std::vector<std::vector<std::vector<int>>> operators_eff_lookup;
 
+    bool interferes(const TaskProxy &task_proxy,
+                    const LandmarkNode *node_a,
+                    const LandmarkNode *node_b) const;
+    bool effect_always_happens(const VariablesProxy &variables,
+                               const EffectsProxy &effects,
+                               std::set<FactPair> &eff) const;
     int loop_acyclic_graph(LandmarkNode &lmn,
                            std::unordered_set<LandmarkNode *> &acyclic_node_set);
-    void remove_first_weakest_cycle_edge(
-        std::list<std::pair<LandmarkNode *, EdgeType>> &path,
-        std::list<std::pair<LandmarkNode *, EdgeType>>::iterator it);
+    bool remove_first_weakest_cycle_edge(LandmarkNode *cur,
+                                         std::list<std::pair<LandmarkNode *, EdgeType>> &path,
+                                         std::list<std::pair<LandmarkNode *, EdgeType>>::iterator it);
+    void collect_ancestors(std::unordered_set<LandmarkNode *> &result, LandmarkNode &node,
+                           bool use_reasonable);
     void generate_operators_lookups(const TaskProxy &task_proxy);
 };
 
-extern void add_landmark_factory_options_to_feature(plugins::Feature &feature);
-extern void add_use_orders_option_to_feature(plugins::Feature &feature);
-extern void add_only_causal_landmarks_option_to_feature(plugins::Feature &feature);
+extern void _add_options_to_parser(options::OptionParser &parser);
 }
 
 #endif

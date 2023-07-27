@@ -1,9 +1,9 @@
 #include "utils.h"
 
-#include "../plugins/plugin.h"
+#include "../option_parser.h"
+
 #include "../heuristics/additive_heuristic.h"
 #include "../task_utils/task_properties.h"
-#include "../utils/logging.h"
 #include "../utils/memory.h"
 
 #include <algorithm>
@@ -15,10 +15,9 @@ using namespace std;
 namespace cegar {
 unique_ptr<additive_heuristic::AdditiveHeuristic> create_additive_heuristic(
     const shared_ptr<AbstractTask> &task) {
-    plugins::Options opts;
+    Options opts;
     opts.set<shared_ptr<AbstractTask>>("transform", task);
     opts.set<bool>("cache_estimates", false);
-    opts.set<utils::Verbosity>("verbosity", utils::Verbosity::SILENT);
     return utils::make_unique_ptr<additive_heuristic::AdditiveHeuristic>(opts);
 }
 

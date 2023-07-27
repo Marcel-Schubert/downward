@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace plugins {
+namespace options {
 class Options;
 }
 
@@ -60,7 +60,7 @@ protected:
     virtual SearchStatus step() override;
 
 public:
-    explicit EnforcedHillClimbingSearch(const plugins::Options &opts);
+    explicit EnforcedHillClimbingSearch(const options::Options &opts);
     virtual ~EnforcedHillClimbingSearch() override;
 
     virtual void print_statistics() const override;

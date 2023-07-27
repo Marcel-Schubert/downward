@@ -3,7 +3,9 @@
 #include "cg_cache.h"
 #include "domain_transition_graph.h"
 
-#include "../plugins/plugin.h"
+#include "../option_parser.h"
+#include "../plugin.h"
+
 #include "../task_utils/task_properties.h"
 #include "../utils/logging.h"
 
@@ -16,19 +18,17 @@ using namespace std;
 using namespace domain_transition_graph;
 
 namespace cg_heuristic {
-CGHeuristic::CGHeuristic(const plugins::Options &opts)
+CGHeuristic::CGHeuristic(const Options &opts)
     : Heuristic(opts),
       cache_hits(0),
       cache_misses(0),
       helpful_transition_extraction_counter(0),
       min_action_cost(task_properties::get_min_operator_cost(task_proxy)) {
-    if (log.is_at_least_normal()) {
-        log << "Initializing causal graph heuristic..." << endl;
-    }
+    utils::g_log << "Initializing causal graph heuristic..." << endl;
 
     int max_cache_size = opts.get<int>("max_cache_size");
     if (max_cache_size > 0)
-        cache = utils::make_unique_ptr<CGCache>(task_proxy, max_cache_size, log);
+        cache = utils::make_unique_ptr<CGCache>(task_proxy, max_cache_size);
 
     unsigned int num_vars = task_proxy.get_variables().size();
     prio_queues.reserve(num_vars);
@@ -285,32 +285,34 @@ void CGHeuristic::mark_helpful_transitions(const State &state,
     }
 }
 
-class CGHeuristicFeature : public plugins::TypedFeature<Evaluator, CGHeuristic> {
-public:
-    CGHeuristicFeature() : TypedFeature("cg") {
-        document_title("Causal graph heuristic");
+static shared_ptr<Heuristic> _parse(OptionParser &parser) {
+    parser.document_synopsis("Causal graph heuristic", "");
+    parser.document_language_support("action costs", "supported");
+    parser.document_language_support("conditional effects", "supported");
+    parser.document_language_support(
+        "axioms",
+        "supported (in the sense that the planner won't complain -- "
+        "handling of axioms might be very stupid "
+        "and even render the heuristic unsafe)");
+    parser.document_property("admissible", "no");
+    parser.document_property("consistent", "no");
+    parser.document_property("safe", "no");
+    parser.document_property("preferred operators", "yes");
 
-        add_option<int>(
-            "max_cache_size",
-            "maximum number of cached entries per variable (set to 0 to disable cache)",
-            "1000000",
-            plugins::Bounds("0", "infinity"));
-        Heuristic::add_options_to_feature(*this);
+    parser.add_option<int>(
+        "max_cache_size",
+        "maximum number of cached entries per variable (set to 0 to disable cache)",
+        "1000000",
+        Bounds("0", "infinity"));
 
-        document_language_support("action costs", "supported");
-        document_language_support("conditional effects", "supported");
-        document_language_support(
-            "axioms",
-            "supported (in the sense that the planner won't complain -- "
-            "handling of axioms might be very stupid "
-            "and even render the heuristic unsafe)");
+    Heuristic::add_options_to_parser(parser);
+    Options opts = parser.parse();
+    if (parser.dry_run())
+        return nullptr;
+    else
+        return make_shared<CGHeuristic>(opts);
+}
 
-        document_property("admissible", "no");
-        document_property("consistent", "no");
-        document_property("safe", "no");
-        document_property("preferred operators", "yes");
-    }
-};
 
-static plugins::FeaturePlugin<CGHeuristicFeature> _plugin;
+static Plugin<Evaluator> _plugin("cg", _parse);
 }

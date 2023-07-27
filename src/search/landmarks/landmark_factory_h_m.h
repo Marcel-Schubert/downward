@@ -4,6 +4,8 @@
 #include "landmark_factory.h"
 
 namespace landmarks {
+class Exploration;
+
 using FluentSet = std::vector<FactPair>;
 
 std::ostream &
@@ -79,9 +81,15 @@ class LandmarkFactoryHM : public LandmarkFactory {
                      const FactPair &fact1,
                      const FactPair &fact2) const;
 
-    void postprocess(const TaskProxy &task_proxy);
+    void generate(const TaskProxy &task_proxy);
 
-    void discard_conjunctive_landmarks();
+    // TODO: this is duplicated here and in LandmarkFactoryRelaxation
+    void discard_noncausal_landmarks(const TaskProxy &task_proxy,
+                                     Exploration &exploration);
+    // TODO: this is duplicated here and in LandmarkFactoryRelaxation
+    bool is_causal_landmark(const TaskProxy &task_proxy,
+                            Exploration &exploration,
+                            const LandmarkNode &landmark) const;
 
     void calc_achievers(const TaskProxy &task_proxy);
 
@@ -90,12 +98,10 @@ class LandmarkFactoryHM : public LandmarkFactory {
     void initialize(const TaskProxy &task_proxy);
     void free_unneeded_memory();
 
-    void print_fluentset(const VariablesProxy &variables, const FluentSet &fs) const;
-    void print_pm_op(const VariablesProxy &variables, const PMOp &op) const;
+    void print_fluentset(const VariablesProxy &variables, const FluentSet &fs);
+    void print_pm_op(const VariablesProxy &variables, const PMOp &op);
 
     const int m_;
-    const bool conjunctive_landmarks;
-    const bool use_orders;
 
     std::map<int, LandmarkNode *> lm_node_table_;
 
@@ -138,9 +144,8 @@ class LandmarkFactoryHM : public LandmarkFactory {
     void print_proposition(const VariablesProxy &variables, const FactPair &fluent) const;
 
 public:
-    explicit LandmarkFactoryHM(const plugins::Options &opts);
+    explicit LandmarkFactoryHM(const options::Options &opts);
 
-    virtual bool computes_reasonable_orders() const override;
     virtual bool supports_conditional_effects() const override;
 };
 }

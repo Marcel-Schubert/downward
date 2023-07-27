@@ -1,12 +1,9 @@
 #ifndef LANDMARKS_LANDMARK_GRAPH_H
 #define LANDMARKS_LANDMARK_GRAPH_H
 
-#include "landmark.h"
-
 #include "../task_proxy.h"
 
 #include "../utils/hash.h"
-#include "../utils/memory.h"
 
 #include <cassert>
 #include <list>
@@ -34,14 +31,64 @@ enum class EdgeType {
 
 class LandmarkNode {
     int id;
-    Landmark landmark;
 public:
-    LandmarkNode(Landmark &&landmark)
-        : id(-1), landmark(std::move(landmark)) {
+    LandmarkNode(std::vector<FactPair> &facts, bool disjunctive, bool conjunctive)
+        : id(-1), facts(facts), disjunctive(disjunctive), conjunctive(conjunctive),
+          is_true_in_goal(false), cost(1), is_derived(false) {
     }
 
+    std::vector<FactPair> facts;
+    bool disjunctive;
+    bool conjunctive;
     std::unordered_map<LandmarkNode *, EdgeType> parents;
+    std::vector<LandmarkNode *> final_parents;
     std::unordered_map<LandmarkNode *, EdgeType> children;
+    std::vector<LandmarkNode *> final_children;
+    bool is_true_in_goal;
+
+    // Cost of achieving the landmark (as determined by the landmark factory)
+    int cost;
+
+    bool is_derived;
+
+    std::set<int> first_achievers;
+    std::set<int> possible_achievers;
+
+    // size_t first_greedy_necessary_child;
+    size_t first_natural_child;
+    size_t first_reasonable_child;
+    size_t first_reasonable_obedient_child;
+
+    // size_t first_greedy_necessary_parent;
+    size_t first_natural_parent;
+    // size_t first_reasonable_parent;
+    // size_t first_reasonable_obedient_parent;
+
+    std::vector<LandmarkNode *>::const_iterator necessary_children_begin() const {
+        return final_children.begin();
+    }
+
+    std::vector<LandmarkNode *>::const_iterator reasonable_children_begin() const {
+        return final_children.begin() + first_reasonable_child;
+    }
+
+    std::vector<LandmarkNode *>::const_iterator greedy_necessary_children_end() const {
+        return final_children.begin() + first_natural_child;
+    }
+
+    std::vector<LandmarkNode *>::const_iterator reasonable_children_end() const {
+        return final_children.begin() + first_reasonable_obedient_child;
+    }
+
+    std::vector<LandmarkNode *>::const_iterator necessary_parents_begin() const {
+        return final_parents.begin();
+    }
+
+    std::vector<LandmarkNode *>::const_iterator greedy_necessary_parents_end() const {
+        return final_parents.begin() + first_natural_parent;
+    }
+
+    void finalize();
 
     int get_id() const {
         return id;
@@ -53,15 +100,10 @@ public:
         id = new_id;
     }
 
-    // TODO: Remove this function once the LM-graph is constant after creation.
-    Landmark &get_landmark() {
-        return landmark;
-    }
-
-    const Landmark &get_landmark() const {
-        return landmark;
-    }
+    bool is_true_in_state(const State &state) const;
 };
+
+using LandmarkSet = std::unordered_set<const LandmarkNode *>;
 
 class LandmarkGraph {
 public:
@@ -108,12 +150,12 @@ public:
     /* This is needed only by landmark graph factories and will disappear
        when moving landmark graph creation there. */
     int get_num_edges() const;
-    int get_num_edges(EdgeType edge_type) const;
 
-    // only needed by non-landmarkgraph-factories
-    LandmarkNode *get_node(int index) const;
-    // only needed by non-landmarkgraph-factories
-    LandmarkNode *get_node(const FactPair &fact) const;
+
+    // only needed only by non-landmarkgraph-factories
+    LandmarkNode *get_landmark(int index) const;
+    // only needed only by non-landmarkgraph-factories
+    LandmarkNode *get_landmark(const FactPair &fact) const;
     /* This is needed only by landmark graph factories and will disappear
        when moving landmark graph creation there. */
     LandmarkNode &get_simple_landmark(const FactPair &fact) const;
@@ -141,7 +183,13 @@ public:
 
     /* This is needed only by landmark graph factories and will disappear
        when moving landmark graph creation there. */
-    LandmarkNode &add_landmark(Landmark &&landmark);
+    LandmarkNode &add_simple_landmark(const FactPair &lm);
+    /* This is needed only by landmark graph factories and will disappear
+       when moving landmark graph creation there. */
+    LandmarkNode &add_disjunctive_landmark(const std::set<FactPair> &lm);
+    /* This is needed only by landmark graph factories and will disappear
+       when moving landmark graph creation there. */
+    LandmarkNode &add_conjunctive_landmark(const std::set<FactPair> &lm);
     /* This is needed only by landmark graph factories and will disappear
        when moving landmark graph creation there. */
     void remove_node(LandmarkNode *node);
@@ -151,6 +199,8 @@ public:
     /* This is needed only by landmark graph factories and will disappear
        when moving landmark graph creation there. */
     void set_landmark_ids();
+
+    void finalize();
 };
 }
 
