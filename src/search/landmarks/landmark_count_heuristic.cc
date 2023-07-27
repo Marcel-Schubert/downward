@@ -77,8 +77,6 @@ LandmarkCountHeuristic::LandmarkCountHeuristic(const options::Options &opts)
     bool reasonable_orders = lm_graph_factory->use_reasonable_orders();
     bool obedient_reasonable_orders =
             lm_graph_factory->use_obedient_reasonable_orders();
-    bool from_file =
-            lm_graph_factory->use_from_file();
     bool add_goal_atoms = opts.get<bool>("add_goal_atoms");
     bool add_gn_parents = opts.get<bool>("add_gn_parents");
     switch (lm_status_manager_type) {

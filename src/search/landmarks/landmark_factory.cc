@@ -80,6 +80,7 @@ shared_ptr<LandmarkGraph> LandmarkFactory::compute_lm_graph(
                      << " are disjunctive and "
                      << lm_graph->get_num_conjunctive_landmarks() << " are conjunctive." << endl;
         utils::g_log << lm_graph->get_num_edges() << " edges" << endl;
+        utils::g_log << lm_graph->get_num_reasonable_edges() << " reasonable orderings" << endl;
     }
     dump_landmark_graph(task_proxy, *lm_graph);
     return lm_graph;

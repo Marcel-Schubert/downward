@@ -113,6 +113,18 @@ int LandmarkGraph::get_num_edges() const {
     return total;
 }
 
+int LandmarkGraph::get_num_reasonable_edges() const {
+    int total = 0;
+    for (auto &node : nodes){
+        for (auto &pair : node->children){
+            if (pair.second == EdgeType::REASONABLE) {
+                total++;
+            }
+        }
+    }
+    return total;
+}
+
 LandmarkNode *LandmarkGraph::get_landmark(int i) const {
     return nodes[i].get();
 }
