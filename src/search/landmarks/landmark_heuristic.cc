@@ -96,7 +96,7 @@ void LandmarkHeuristic::compute_landmark_graph(const plugins::Options &opts) {
         log << "Reasonable edges: " << lm_graph->get_num_edges(EdgeType::REASONABLE) << endl;
     }
 
-    dump_landmark_graph(task_proxy, *lm_graph, log);
+    // dump_landmark_graph(task_proxy, *lm_graph, log);
     if (opts.get<bool>("dump_and_exit")) {
         dump_landmark_file(task_proxy, *lm_graph);
         log << "Dumped landmarks. Exitting." << endl;
