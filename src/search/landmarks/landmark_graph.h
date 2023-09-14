@@ -101,6 +101,7 @@ public:
     }
 
     bool is_true_in_state(const State &state) const;
+    bool is_implicit_natural_before(const LandmarkNode* other) const;
 };
 
 using LandmarkSet = std::unordered_set<const LandmarkNode *>;

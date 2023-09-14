@@ -367,8 +367,10 @@ void LandmarkFactory::approximate_reasonable_orders(
             if (!obedient_orders && node_p->is_true_in_goal) {
                 for (auto &node2_p : lm_graph->get_nodes()) {
                     if (node2_p == node_p || node2_p->disjunctive
-                        || (node_p->is_true_in_state(initial_state)
-                            && node2_p->is_true_in_state(initial_state)))
+                        // [Marcel] removed conjunct with node_p->is_true_in_state(initial_state)
+                        // This condition is enough to render the reasonable ordering useless
+                        || node2_p->is_true_in_state(initial_state)
+                        || node2_p->is_implicit_natural_before(node_p.get()))
                         continue;
                     if (interferes(task_proxy, node2_p.get(), node_p.get())) {
                         edge_add(*node2_p, *node_p, EdgeType::REASONABLE);
@@ -401,8 +403,10 @@ void LandmarkFactory::approximate_reasonable_orders(
                 // with node_p.
                 for (LandmarkNode *node : interesting_nodes) {
                     if (node == node_p.get() || node->disjunctive
-                        || (node->is_true_in_state(initial_state)
-                            && node_p->is_true_in_state(initial_state)))
+                        // [Marcel] removed conjunct with node_p->is_true_in_state(initial_state)
+                        // This condition is enough to render the reasonable ordering useless
+                        || node->is_true_in_state(initial_state)
+                        || node->is_implicit_natural_before(node_p.get()))
                         continue;
                     if (interferes(task_proxy, node, node_p.get())) {
                         if (!obedient_orders)
