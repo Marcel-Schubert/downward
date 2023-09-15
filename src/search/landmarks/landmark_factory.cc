@@ -22,6 +22,7 @@ LandmarkFactory::LandmarkFactory(const options::Options &opts)
     : reasonable_orders(opts.get<bool>("reasonable_orders")),
       obedient_reasonable_orders(opts.get<bool>("obedient_reasonable_orders")),
       from_file(opts.get<bool>("from_file")),
+      prune_resonable_orders(opts.get<bool>("prune_reasonable_orders")),
       acyclic(opts.get<bool>("acyclic")),
       only_causal_landmarks(opts.get<bool>("only_causal_landmarks")),
       disjunctive_landmarks(opts.get<bool>("disjunctive_landmarks")),
@@ -366,13 +367,14 @@ void LandmarkFactory::approximate_reasonable_orders(
 
             if (!obedient_orders && node_p->is_true_in_goal) {
                 for (auto &node2_p : lm_graph->get_nodes()) {
-                    if (node2_p == node_p || node2_p->disjunctive
-                        // [Marcel] removed conjunct with node_p->is_true_in_state(initial_state)
-                        // This condition is enough to render the reasonable ordering useless
-                        || node2_p->is_true_in_state(initial_state))
-                        continue;
-                    if (interferes(task_proxy, node2_p.get(), node_p.get())
-                        && !node2_p->is_implicit_natural_before(node_p.get())) {
+                    if (node2_p == node_p or node2_p->disjunctive) continue;
+                    if (node2_p->is_true_in_state(initial_state)) {
+                        if (prune_resonable_orders or node_p->is_true_in_state(initial_state))
+                            continue;
+                    }
+                    if (interferes(task_proxy, node2_p.get(), node_p.get())) {
+                        if (prune_resonable_orders && node2_p->is_implicit_natural_before(node_p.get()))
+                            continue;
                         edge_add(*node2_p, *node_p, EdgeType::REASONABLE);
                     }
                 }
@@ -402,13 +404,14 @@ void LandmarkFactory::approximate_reasonable_orders(
                 // Insert reasonable orders between those members of "interesting nodes" that interfere
                 // with node_p.
                 for (LandmarkNode *node : interesting_nodes) {
-                    if (node == node_p.get() || node->disjunctive
-                        // [Marcel] removed conjunct with node_p->is_true_in_state(initial_state)
-                        // This condition is enough to render the reasonable ordering useless
-                        || node->is_true_in_state(initial_state))
-                        continue;
-                    if (interferes(task_proxy, node, node_p.get()) 
-                        && !node->is_implicit_natural_before(node_p.get())) {
+                    if (node == node_p.get() or node->disjunctive) continue;
+                    if (node->is_true_in_state(initial_state)){
+                        if (prune_resonable_orders or node_p->is_true_in_state(initial_state))
+                            continue;
+                    }
+                    if (interferes(task_proxy, node, node_p.get())) {
+                        if (prune_resonable_orders and node->is_implicit_natural_before(node_p.get()))
+                            continue;
                         if (!obedient_orders)
                             edge_add(*node, *node_p, EdgeType::REASONABLE);
                         else
@@ -671,6 +674,9 @@ void _add_options_to_parser(OptionParser &parser) {
                             "false");
     parser.add_option<bool>("from_file",
                             "read reasonable orders from ros.txt",
+                            "false");
+    parser.add_option<bool>("prune_reasonable_orders",
+                            "prune reasonable orderings A -r-> B if A is initially true or A -nat-> B is implicit (due to transitive natural or stronger orderings)",
                             "false");
     parser.add_option<bool>("acyclic",
                             "ensures that landmark graphs are acyclic",

@@ -46,6 +46,7 @@ protected:
     const bool reasonable_orders;
     const bool obedient_reasonable_orders;
     const bool from_file;
+    const bool prune_resonable_orders;
     const bool acyclic;
     const bool only_causal_landmarks;
     const bool disjunctive_landmarks;
