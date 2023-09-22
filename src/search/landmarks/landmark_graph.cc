@@ -30,31 +30,6 @@ bool LandmarkNode::is_true_in_state(const State &state) const {
     }
 }
 
-// If there is a chain of natural orderings (or stronger orderings, they are also natural orderings)
-// there is an implicit natural ordering
-// Used to prune reasonable orderings that are not informative
-bool LandmarkNode::is_implicit_natural_before(const LandmarkNode* other) const {
-    list<const LandmarkNode*> open_nodes;
-    unordered_set< const LandmarkNode*> closed_nodes;
-    open_nodes.push_back(other);
-    while (!open_nodes.empty()) {
-        const LandmarkNode* node = open_nodes.front();
-        open_nodes.pop_front();
-        for (const auto &pair : node->parents) {
-            const LandmarkNode* parent = pair.first;
-            const EdgeType edge_type = pair.second;
-            if (edge_type >= EdgeType::NATURAL) {
-                if (parent->get_id() == this->get_id()){
-                    return true;
-                }
-                open_nodes.push_back(parent);
-                closed_nodes.insert(node);
-            }
-        }
-    }
-    return false;
-}
-
 void LandmarkNode::finalize() {
     final_parents.reserve(parents.size());
     vector<LandmarkNode*> greedy_necessary;
