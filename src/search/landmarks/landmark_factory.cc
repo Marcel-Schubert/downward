@@ -365,6 +365,11 @@ void LandmarkFactory::approximate_reasonable_orders(
             if (obedient_orders && node_p->is_true_in_state(initial_state))
                 continue;
 
+            unordered_set<LandmarkNode *> node_p_ancestors(variables_size);
+            if (prune_resonable_orders) {
+                collect_ancestors(node_p_ancestors, *node_p.get(), false);
+            }
+
             if (!obedient_orders && node_p->is_true_in_goal) {
                 for (auto &node2_p : lm_graph->get_nodes()) {
                     if (node2_p == node_p or node2_p->disjunctive) continue;
@@ -372,9 +377,9 @@ void LandmarkFactory::approximate_reasonable_orders(
                         if (prune_resonable_orders or node_p->is_true_in_state(initial_state))
                             continue;
                     }
+                    if (prune_resonable_orders && node_p_ancestors.count(node2_p.get()))
+                        continue;
                     if (interferes(task_proxy, node2_p.get(), node_p.get())) {
-                        if (prune_resonable_orders && node2_p->is_implicit_natural_before(node_p.get()))
-                            continue;
                         edge_add(*node2_p, *node_p, EdgeType::REASONABLE);
                     }
                 }
@@ -409,9 +414,9 @@ void LandmarkFactory::approximate_reasonable_orders(
                         if (prune_resonable_orders or node_p->is_true_in_state(initial_state))
                             continue;
                     }
+                    if (prune_resonable_orders && node_p_ancestors.count(node))
+                        continue;
                     if (interferes(task_proxy, node, node_p.get())) {
-                        if (prune_resonable_orders and node->is_implicit_natural_before(node_p.get()))
-                            continue;
                         if (!obedient_orders)
                             edge_add(*node, *node_p, EdgeType::REASONABLE);
                         else
