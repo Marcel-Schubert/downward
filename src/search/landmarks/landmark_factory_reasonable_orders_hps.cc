@@ -15,7 +15,8 @@ using namespace std;
 namespace landmarks {
 LandmarkFactoryReasonableOrdersHPS::LandmarkFactoryReasonableOrdersHPS(
     const Options &opts)
-    : lm_factory(opts.get<shared_ptr<LandmarkFactory>>("lm_factory")) {
+    : lm_factory(opts.get<shared_ptr<LandmarkFactory>>("lm_factory")),
+      prune_reasonable_orders(opts.get<bool>("prune_reasonable_orders")) {
 }
 
 void LandmarkFactoryReasonableOrdersHPS::generate_landmarks(
@@ -61,10 +62,15 @@ void LandmarkFactoryReasonableOrdersHPS::approximate_reasonable_orders(
         if (landmark.is_true_in_goal) {
             for (auto &node2_p : lm_graph->get_nodes()) {
                 const Landmark &landmark2 = node2_p->get_landmark();
-                if (landmark == landmark2 || landmark2.disjunctive
-                    || (landmark.is_true_in_state(initial_state)
-                        && landmark2.is_true_in_state(initial_state)))
+                if (landmark == landmark2 || landmark2.disjunctive) continue;
+                if (landmark.is_true_in_state(initial_state)
+                        && (prune_reasonable_orders or landmark2.is_true_in_state(initial_state)))
                     continue;
+                if (prune_reasonable_orders){
+                    unordered_set<LandmarkNode *> node_p_ancestors(variables_size);
+                    collect_ancestors(node_p_ancestors, *node_p);
+                    if (node_p_ancestors.count(node2_p.get())) continue;
+                }
                 if (interferes(task_proxy, landmark2, landmark)) {
                     edge_add(*node2_p, *node_p, EdgeType::REASONABLE);
                 }
@@ -96,10 +102,16 @@ void LandmarkFactoryReasonableOrdersHPS::approximate_reasonable_orders(
             // with node_p.
             for (LandmarkNode *node2_p : interesting_nodes) {
                 const Landmark &landmark2 = node2_p->get_landmark();
-                if (landmark == landmark2 || landmark2.disjunctive
-                    || (landmark.is_true_in_state(initial_state)
-                        && landmark2.is_true_in_state(initial_state)))
+                if (landmark == landmark2 || landmark2.disjunctive) continue;
+                if (landmark.is_true_in_state(initial_state)
+                        && (prune_reasonable_orders or landmark2.is_true_in_state(initial_state)))
                     continue;
+                if (prune_reasonable_orders) {
+                    unordered_set<LandmarkNode *> node_p_ancestors(variables_size);
+                    collect_ancestors(node_p_ancestors, *node_p);
+                    if (node_p_ancestors.count(node2_p)) continue;
+                }
+                
                 if (interferes(task_proxy, landmark2, landmark)) {
                     edge_add(*node2_p, *node_p, EdgeType::REASONABLE);
                 }
@@ -397,6 +409,9 @@ static shared_ptr<LandmarkFactory> _parse(OptionParser &parser) {
             "215-278",
             "2004"));
     parser.add_option<shared_ptr<LandmarkFactory>>("lm_factory");
+    parser.add_option<bool>("prune_reasonable_orders",
+                            "prune reasonable orderings A -r-> B if A is initially true or A -nat-> B is implicit (due to transitive natural or stronger orderings)",
+                            "false");
     Options opts = parser.parse();
 
     // TODO: correct?
